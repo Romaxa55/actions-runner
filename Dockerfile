@@ -17,7 +17,7 @@ ENV RUNNER_ALLOW_RUNASROOT=true
 RUN set -x && \
     export RUNNER_ARCH="$(uname -m)" && \
     case ${RUNNER_ARCH} in \
-      x86_64) RUNNER_ARCH="amd64" ;; \
+      x86_64) RUNNER_ARCH="x64" ;; \
       aarch64) RUNNER_ARCH="arm64" ;; \
       *) echo "Unsupported architecture" && exit 1 ;; \
     esac && \
