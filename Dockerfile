@@ -1,26 +1,39 @@
+ARG RUNNER_VERSION=2.307.1
+
 # hadolint ignore=DL3007
-FROM myoung34/github-runner-base:latest
-LABEL maintainer="myoung34@my.apsu.edu"
+FROM ubuntu:23.10 as base
+LABEL maintainer="Roman Shamagin"
 
-ENV AGENT_TOOLSDIRECTORY=/opt/hostedtoolcache
-RUN mkdir -p /opt/hostedtoolcache
-
-ARG GH_RUNNER_VERSION="2.307.1"
-
-ARG TARGETPLATFORM
-
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
+# Создаем рабочую директорию
 WORKDIR /actions-runner
-COPY install_actions.sh /actions-runner
 
-RUN chmod +x /actions-runner/install_actions.sh \
-  && /actions-runner/install_actions.sh ${GH_RUNNER_VERSION} ${TARGETPLATFORM} \
-  && rm /actions-runner/install_actions.sh \
-  && chown runner /_work /actions-runner /opt/hostedtoolcache
+RUN apt-get update -q && \
+    apt-get install -yq --no-install-recommends curl ca-certificates docker.io && \
+    rm -rf /var/lib/apt/lists/*
 
-COPY token.sh entrypoint.sh app_token.sh /
-RUN chmod +x /token.sh /entrypoint.sh /app_token.sh
+ARG RUNNER_VERSION
+ENV RUNNER_ALLOW_RUNASROOT=true
+# Определяем архитектуру системы
+RUN set -x && \
+    export RUNNER_ARCH="$(uname -m)" && \
+    case ${RUNNER_ARCH} in \
+      x86_64) RUNNER_ARCH="amd64" ;; \
+      aarch64) RUNNER_ARCH="arm64" ;; \
+      *) echo "Unsupported architecture" && exit 1 ;; \
+    esac && \
+    curl -o actions-runner-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz -L https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz && \
+    tar xzf ./actions-runner-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz && \
+    rm ./actions-runner-${RUNNER_ARCH}-${RUNNER_VERSION}.tar.gz
 
+# Устанавливаем зависимости
+RUN ./bin/installdependencies.sh && \
+    rm -rf /var/lib/apt/lists/*
+
+# Копируем файл entrypoint.sh в контейнер
+COPY entrypoint.sh /entrypoint.sh
+
+# Устанавливаем файл entrypoint.sh в качестве точки входа
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["./bin/Runner.Listener", "run", "--startuptype", "service"]
+
+# Запускаем раннер
+CMD ["./run.sh"]

@@ -1,0 +1,6 @@
+services:
+  actions-runner:
+    image: ghcr.io/romaxa55/actions-runner:latest
+    environment:
+      - RUNNER_URL=<https://github.com/Romaxa55/rtmp-hls-server>
+      - RUNNER_TOKEN=<token>
